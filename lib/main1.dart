@@ -126,11 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               }));
                     }else{
                       //处理epub文件格式数据,
-                      var targetFile = File(item.url);
-                      var bytes = await targetFile.readAsBytes();
-
-                      EpubBook epubBook = await EpubReader.readBook(bytes);
-                      //EpubBookRef epubBook =await EpubReader.openBook(bytes);
+                      EpubBook epubBook= await EpubDocument.openFile(File(item.url));
 
                       var coverImage = epubBook.CoverImage;
                       //var pagenum = await getBookCurrentPage(item.url);

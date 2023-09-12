@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:epub_view/epub_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiOverlayStyle;
@@ -84,7 +86,7 @@ class _WyEpubPageState extends State<WyEpubPage> {
     _epubReaderController = EpubController(
       document:
       // EpubDocument.openAsset('assets/New-Findings-on-Shirdi-Sai-Baba.epub'),
-      EpubDocument.openAsset(widget.url),
+     EpubDocument.openFile(File(widget.url)),
 
     );
     super.initState();
