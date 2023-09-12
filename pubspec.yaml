@@ -36,12 +36,13 @@ dependencies:
   file_picker: ^5.3.2
   path_provider: ^2.0.15
   yaml: ^3.1.2
-  pdf: ^3.10.4
+  pdf: ^3.8.4
   pdfx: ^2.4.0
   syncfusion_flutter_pdfviewer: <=22.1.37
   provider: ^5.0.0
   collapsible_sidebar: ^2.0.5+1
   flutter_chatgpt_api: ^1.1.0
+  epub_view: ^3.2.0
 
 dev_dependencies:
   flutter_test:

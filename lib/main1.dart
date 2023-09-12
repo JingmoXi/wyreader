@@ -1,6 +1,8 @@
 import 'dart:ffi';
 
+import 'package:epub_view/epub_view.dart';
 import 'package:flutter/material.dart';
+import 'package:wyreader/screen/epub.dart';
 import './modle/BookInfo.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,13 +16,8 @@ import 'package:provider/provider.dart';
 import './common/CounterProvider.dart';
 
 void main() {
-  runApp(
-      ChangeNotifierProvider(
-        create: (context) => CounterProvider(),
-        child: const MyApp()
-      )
-
-  );
+  runApp(ChangeNotifierProvider(
+      create: (context) => CounterProvider(), child: const MyApp()));
 }
 
 //阅读器，阅读pdf、epub、aws3等网络资源。
@@ -56,7 +53,6 @@ class _MyHomePageState extends State<MyHomePage> {
   var bookinfospath;
   var dir;
 
-
   @override
   void initState() {
     super.initState();
@@ -91,83 +87,118 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Consumer<CounterProvider>(
-      builder: (context, counter, child) => Scaffold(
-        body: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3, // 每行显示的子小部件数量
-          ),
-          itemBuilder: (BuildContext context, int index) {
-            BookInfo item = books[index];
+        builder: (context, counter, child) => Scaffold(
+              body: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, // 每行显示的子小部件数量
+                ),
+                itemBuilder: (BuildContext context, int index) {
+                  BookInfo item = books[index];
+                  Future<Widget> _buildItem() async {
+                    // 执行异步操作，例如获取数据或进行其他耗时任务
 
-            Future<Widget> _buildItem() async {
-              // 执行异步操作，例如获取数据或进行其他耗时任务
-              final document = await PdfDocument.openFile(item.url);
-              final page = await document.getPage(1);
-              final pageImage = await page.render(width: page.width, height: page.height);
-              await page.close();
-              var pagenum = await getBookCurrentPage(item.url);
+                    if(item.type=="pdf"){
+                      final document = await PdfDocument.openFile(item.url);
+                      final page = await document.getPage(1);
+                      final pageImage = await page.render(
+                          width: page.width, height: page.height);
+                      await page.close();
+                      var pagenum = await getBookCurrentPage(item.url);
+                      return Consumer<CounterProvider>(
+                          builder: (context, counter, child) => GestureDetector(
+                              child:
+                              Cover(item.url, pagenum, pageImage!.bytes, dir),
+                              onTap: () {
+                                //
+                                setState(() {
+                                  books.removeAt(index);
+                                  books.insert(0, item);
+                                });
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) {
+                                      var pdf = Pdfscreen(item.url, pagenum, dir);
+                                      return pdf;
+                                    },
+                                  ),
+                                );
+                              }));
+                    }else{
+                      //处理epub文件格式数据,
+                      var targetFile = File(item.url);
+                      var bytes = await targetFile.readAsBytes();
 
-              return Consumer<CounterProvider>(
-                  builder: (context, counter, child) => GestureDetector(
-                      child: Cover(item.url, pagenum, pageImage!.bytes, dir), onTap: () {
-                    //
-                    setState(() {
-                      books.removeAt(index);
-                      books.insert(0, item);
-                    });
+                      EpubBook epubBook = await EpubReader.readBook(bytes);
+                      //EpubBookRef epubBook =await EpubReader.openBook(bytes);
+
+                      var coverImage = epubBook.CoverImage;
+                      //var pagenum = await getBookCurrentPage(item.url);
+                      return Consumer<CounterProvider>(
+                          builder: (context, counter, child) => GestureDetector(
+                              child: coverImage as Widget,
+
+                              onTap: () {
+                                //
+                                setState(() {
+                                  books.removeAt(index);
+                                  books.insert(0, item);
+                                });
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) {
+                                      //var pdf = Pdfscreen(item.url, pagenum, dir);
+                                      //return pdf;
+                                      return WyEpubPage( url: item.url);
+
+                                    },
+                                  ),
+                                );
+                              }));
+                    }
+
+                  }
+
+                  return FutureBuilder<Widget>(
+                    future: _buildItem(),
+                    builder:
+                        (BuildContext context, AsyncSnapshot<Widget> snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        // 异步操作尚未完成，可以显示加载指示器或占位符
+                        return CircularProgressIndicator();
+                      } else if (snapshot.hasError) {
+                        // 处理异步操作中的错误
+                        return Text('Error: ${snapshot.error}');
+                      } else {
+                        // 异步操作已完成，返回构建好的列表项小部件
+                        return snapshot.data!;
+                      }
+                    },
+                  );
+                },
+                itemCount: books.length,
+              ),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () async {
+                  var book = await _addbook();
+                  var page = await getBookCurrentPage(book.url);
+                  if (!book.url.isEmpty) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) {
-                          var pdf = Pdfscreen(item.url, pagenum, dir);
+                          var pdf = Pdfscreen(book.url, page, dir);
                           return pdf;
                         },
                       ),
                     );
-                  })
-              );
-            }
-
-            return FutureBuilder<Widget>(
-              future: _buildItem(),
-              builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  // 异步操作尚未完成，可以显示加载指示器或占位符
-                  return CircularProgressIndicator();
-                } else if (snapshot.hasError) {
-                  // 处理异步操作中的错误
-                  return Text('Error: ${snapshot.error}');
-                } else {
-                  // 异步操作已完成，返回构建好的列表项小部件
-                  return snapshot.data!;
-                }
-              },
-            );
-          },
-          itemCount: books.length,
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () async {
-            var book = await _addbook();
-            var page = await getBookCurrentPage(book.url);
-            if (!book.url.isEmpty) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) {
-                    var pdf = Pdfscreen(
-                        book.url, page, dir
-                    );
-                    return pdf;
-                  },
-                ),
-              );
-            }
-          },
-          tooltip: 'AddBook',
-          child: const Icon(Icons.add),
-        ), // This trailing comma makes auto-formatting nicer for build methods.
-      ));
+                  }
+                },
+                tooltip: 'AddBook',
+                child: const Icon(Icons.add),
+              ), // This trailing comma makes auto-formatting nicer for build methods.
+            ));
     // return Scaffold(
     //   body: GridView.builder(
     //     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -262,13 +293,13 @@ class _MyHomePageState extends State<MyHomePage> {
       String filePath = result.files.single.path!;
       print('Selected file: $filePath');
       var book = BookInfo(pdf, filePath);
-      if(filePath.endsWith("pdf")){
+      if (filePath.endsWith("pdf")) {
         //
-        book=BookInfo(pdf, filePath);
-      }else if(filePath.endsWith("epub")){
+        book = BookInfo(pdf, filePath);
+      } else if (filePath.endsWith("epub")) {
         //
-        book=BookInfo(epub, filePath);
-      }else{
+        book = BookInfo(epub, filePath);
+      } else {
         return BookInfo("", "");
       }
       setState(() {
