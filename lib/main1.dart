@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:typed_data';
 
 import 'package:epub_view/epub_view.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import './screen/pdfscreen.dart';
 import './cover.dart';
 import 'package:provider/provider.dart';
 import './common/CounterProvider.dart';
+import  'package:flutter/src/widgets/image.dart' as img;
 
 void main() {
   runApp(ChangeNotifierProvider(
@@ -126,13 +128,19 @@ class _MyHomePageState extends State<MyHomePage> {
                               }));
                     }else{
                       //处理epub文件格式数据,
-                      EpubBook epubBook= await EpubDocument.openFile(File(item.url));
-
+                      //EpubBook epubBook= await EpubDocument.openFile(File(item.url));
+                      final bytes = await File(item.url).readAsBytes();
+                      EpubBook epubBook= await EpubReader.readBook(bytes);
                       var coverImage = epubBook.CoverImage;
+                      //coverImage.data
+                      //Uint8List.view(coverImage!.data)
                       //var pagenum = await getBookCurrentPage(item.url);
+                      //coverImage.getBytes()
                       return Consumer<CounterProvider>(
                           builder: (context, counter, child) => GestureDetector(
-                              child: coverImage as Widget,
+                              child: img.Image(
+                                image: img.MemoryImage(coverImage!.getBytes()),
+                              ),
 
                               onTap: () {
                                 //
